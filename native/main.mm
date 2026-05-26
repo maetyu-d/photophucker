@@ -348,11 +348,15 @@ fragment float4 fragment_main(
 }
 
 - (void)drawIntoRenderPass:(MTLRenderPassDescriptor *)pass commandBuffer:(id<MTLCommandBuffer>)commandBuffer viewport:(MTLViewport)viewport {
-    if (!self.textureA || !self.textureB || !pass) return;
+    if (!pass) return;
+    id<MTLRenderCommandEncoder> enc = [commandBuffer renderCommandEncoderWithDescriptor:pass];
+    if (!self.textureA || !self.textureB) {
+        [enc endEncoding];
+        return;
+    }
     SlitUniforms u = self.uniforms;
     u.time = CACurrentMediaTime() - self.startTime;
     u.aspect = viewport.width / std::max(1.0, viewport.height);
-    id<MTLRenderCommandEncoder> enc = [commandBuffer renderCommandEncoderWithDescriptor:pass];
     [enc setViewport:viewport];
     [enc setRenderPipelineState:self.pipeline];
     [enc setFragmentTexture:self.textureA atIndex:0];
@@ -457,10 +461,11 @@ fragment float4 fragment_main(
                                                   defer:NO];
     self.window.title = @"Slitscan Found Image Lab";
     self.window.minSize = NSMakeSize(980, 640);
+    self.window.appearance = [NSAppearance appearanceNamed:NSAppearanceNameAqua];
 
     NSView *content = self.window.contentView;
     content.wantsLayer = YES;
-    content.layer.backgroundColor = NSColor.blackColor.CGColor;
+    content.layer.backgroundColor = [NSColor colorWithCalibratedWhite:0.93 alpha:1].CGColor;
 
     NSStackView *root = [NSStackView stackViewWithViews:@[]];
     root.orientation = NSUserInterfaceLayoutOrientationHorizontal;
@@ -476,14 +481,15 @@ fragment float4 fragment_main(
 
     NSView *sidebar = [NSView new];
     sidebar.wantsLayer = YES;
-    sidebar.layer.backgroundColor = [NSColor colorWithCalibratedRed:0.10 green:0.11 blue:0.14 alpha:1].CGColor;
+    sidebar.layer.backgroundColor = [NSColor colorWithCalibratedWhite:0.96 alpha:1].CGColor;
     sidebar.translatesAutoresizingMaskIntoConstraints = NO;
-    [sidebar.widthAnchor constraintEqualToConstant:310].active = YES;
+    [sidebar.widthAnchor constraintEqualToConstant:350].active = YES;
     [root addArrangedSubview:sidebar];
 
     NSScrollView *scrollView = [NSScrollView new];
     scrollView.hasVerticalScroller = YES;
-    scrollView.drawsBackground = NO;
+    scrollView.drawsBackground = YES;
+    scrollView.backgroundColor = [NSColor colorWithCalibratedWhite:0.96 alpha:1];
     scrollView.translatesAutoresizingMaskIntoConstraints = NO;
     [sidebar addSubview:scrollView];
     [NSLayoutConstraint activateConstraints:@[
@@ -522,15 +528,17 @@ fragment float4 fragment_main(
     self.streetViewKeyField = [NSSecureTextField new];
     self.streetViewKeyField.placeholderString = @"Google Street View API key";
     self.streetViewKeyField.stringValue = [NSProcessInfo processInfo].environment[@"GOOGLE_STREET_VIEW_API_KEY"] ?: @"";
-    [self.streetViewKeyField.widthAnchor constraintEqualToConstant:270].active = YES;
+    [self.streetViewKeyField.widthAnchor constraintEqualToConstant:310].active = YES;
     [controls addArrangedSubview:self.streetViewKeyField];
     NSButton *commonsButton = [NSButton buttonWithTitle:@"Random Open Tokyo Pair" target:self action:@selector(loadOpenTokyoPair:)];
     commonsButton.bezelStyle = NSBezelStyleRounded;
-    [commonsButton.widthAnchor constraintEqualToConstant:270].active = YES;
+    commonsButton.font = [NSFont systemFontOfSize:13 weight:NSFontWeightMedium];
+    [commonsButton.widthAnchor constraintEqualToConstant:310].active = YES;
     [controls addArrangedSubview:commonsButton];
     NSButton *streetViewButton = [NSButton buttonWithTitle:@"Google Street View Pair" target:self action:@selector(loadTokyoStreetViewPair:)];
     streetViewButton.bezelStyle = NSBezelStyleRounded;
-    [streetViewButton.widthAnchor constraintEqualToConstant:270].active = YES;
+    streetViewButton.font = [NSFont systemFontOfSize:13 weight:NSFontWeightMedium];
+    [streetViewButton.widthAnchor constraintEqualToConstant:310].active = YES;
     [controls addArrangedSubview:streetViewButton];
 
     NSPopUpButton *mode = [NSPopUpButton new];
@@ -552,7 +560,7 @@ fragment float4 fragment_main(
     ]];
     mode.target = self;
     mode.action = @selector(modeChanged:);
-    [mode.widthAnchor constraintEqualToConstant:270].active = YES;
+    [mode.widthAnchor constraintEqualToConstant:310].active = YES;
     [controls addArrangedSubview:mode];
 
     [self addSliderTo:controls title:@"Slit Width" min:1 max:120 value:18 tag:1];
@@ -578,7 +586,7 @@ fragment float4 fragment_main(
 
     self.metalView = [[MTKView alloc] initWithFrame:NSZeroRect device:device];
     self.metalView.colorPixelFormat = MTLPixelFormatBGRA8Unorm;
-    self.metalView.clearColor = MTLClearColorMake(0.03, 0.035, 0.045, 1);
+    self.metalView.clearColor = MTLClearColorMake(0.08, 0.085, 0.095, 1);
     self.metalView.preferredFramesPerSecond = 60;
     self.metalView.enableSetNeedsDisplay = NO;
     [root addArrangedSubview:self.metalView];
@@ -591,18 +599,20 @@ fragment float4 fragment_main(
 
 - (NSTextField *)label:(NSString *)text size:(CGFloat)size bold:(BOOL)bold {
     NSTextField *field = [NSTextField labelWithString:text];
-    field.textColor = bold ? NSColor.whiteColor : [NSColor colorWithCalibratedWhite:0.78 alpha:1];
+    field.textColor = bold ? [NSColor colorWithCalibratedWhite:0.08 alpha:1] : [NSColor colorWithCalibratedWhite:0.24 alpha:1];
     field.font = bold ? [NSFont boldSystemFontOfSize:size] : [NSFont systemFontOfSize:size];
     field.lineBreakMode = NSLineBreakByWordWrapping;
     field.maximumNumberOfLines = 3;
-    [field.widthAnchor constraintLessThanOrEqualToConstant:275].active = YES;
+    [field.widthAnchor constraintLessThanOrEqualToConstant:315].active = YES;
     return field;
 }
 
 - (NSButton *)button:(NSString *)title action:(SEL)action {
     NSButton *button = [NSButton buttonWithTitle:title target:self action:action];
     button.bezelStyle = NSBezelStyleRounded;
-    [button.widthAnchor constraintEqualToConstant:132].active = YES;
+    button.font = [NSFont systemFontOfSize:13 weight:NSFontWeightMedium];
+    button.contentTintColor = [NSColor controlTextColor];
+    [button.widthAnchor constraintEqualToConstant:152].active = YES;
     return button;
 }
 
@@ -610,7 +620,7 @@ fragment float4 fragment_main(
     [controls addArrangedSubview:[self label:title size:12 bold:NO]];
     NSSlider *slider = [NSSlider sliderWithValue:value minValue:min maxValue:max target:self action:@selector(sliderChanged:)];
     slider.tag = tag;
-    [slider.widthAnchor constraintEqualToConstant:270].active = YES;
+    [slider.widthAnchor constraintEqualToConstant:310].active = YES;
     [controls addArrangedSubview:slider];
 }
 
